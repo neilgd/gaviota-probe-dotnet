@@ -1,9 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.IO;
+﻿using Pwned.Chess.Common;
 using SevenZip.Compression.LZMA;
-using Pwned.Chess.Common;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Gaviota
 {
@@ -18,124 +19,129 @@ namespace Gaviota
         public int dtm;
     }
 
-    public static class EGTB
+    public class EGTB
     {
-        static int entries_per_block = 16 * 1024;
-        static Stream currentStream;
-        static string currentFilename;
-        static List<string> validTables = new List<string>(15);
-        public static Dictionary<int, int> a8toa1 = new Dictionary<int, int>();
+          int entries_per_block = 16 * 1024;
+        Stream currentStream;
+        string currentFilename;
+          List<string> validTables = new List<string>(15);
+        public   Dictionary<int, int> a8toa1 = new Dictionary<int, int>();
+        int NOSQUARE = 0;
 
+        List<TableBlock> blockCache = new List<TableBlock>();
 
-        static int A1 = 0;
-        static int B1 = 1;
-        static int C1 = 2;
-        static int D1 = 3;
-        static int E1 = 4;
-        static int F1 = 5;
-        static int G1 = 6;
-        static int H1 = 7;
-        static int A2 = 8;
-        static int B2 = 9;
-        static int C2 = 10;
-        static int D2 = 11;
-        static int E2 = 12;
-        static int F2 = 13;
-        static int G2 = 14;
-        static int H2 = 15;
-        static int A3 = 16;
-        static int B3 = 17;
-        static int C3 = 18;
-        static int D3 = 19;
-        static int E3 = 20;
-        static int F3 = 21;
-        static int G3 = 22;
-        static int H3 = 23;
-        static int A4 = 24;
-        static int B4 = 25;
-        static int C4 = 26;
-        static int D4 = 27;
-        static int E4 = 28;
-        static int F4 = 29;
-        static int G4 = 30;
-        static int H4 = 31;
-        static int A5 = 32;
-        static int B5 = 33;
-        static int C5 = 34;
-        static int D5 = 35;
-        static int E5 = 36;
-        static int F5 = 37;
-        static int G5 = 38;
-        static int H5 = 39;
-        static int A6 = 40;
-        static int B6 = 41;
-        static int C6 = 42;
-        static int D6 = 43;
-        static int E6 = 44;
-        static int F6 = 45;
-        static int G6 = 46;
-        static int H6 = 47;
-        static int A7 = 48;
-        static int B7 = 49;
-        static int C7 = 50;
-        static int D7 = 51;
-        static int E7 = 52;
-        static int F7 = 53;
-        static int G7 = 54;
-        static int H7 = 55;
-        static int A8 = 56;
-        static int B8 = 57;
-        static int C8 = 58;
-        static int D8 = 59;
-        static int E8 = 60;
-        static int F8 = 61;
-        static int G8 = 62;
-        static int H8 = 63;
-        static int NOINDEX = -1;
+        Stream zipStream;
+        Stream packStream;
 
-        static List<int> whitePieceSquares = new List<int>();
-        static List<int> blackPieceSquares = new List<int>();
-        static int MAX_KKINDEX = 462;
-        static int MAX_PPINDEX = 576;
-        static int MAX_PpINDEX = (24 * 48);
-        static int MAX_AAINDEX = ((63 - 62) + (62 * (127 - 62) / 2) - 1 + 1);
-        static int MAX_AAAINDEX = (64 * 21 * 31);
-        static int MAX_PPP48_INDEX = 8648;
-        static int MAX_PP48_INDEX = (1128);
+        const int A1 = 0;
+          const int B1 = 1;
+          const int C1 = 2;
+          const int D1 = 3;
+          const int E1 = 4;
+          const int F1 = 5;
+          const int G1 = 6;
+          const int H1 = 7;
+          const int A2 = 8;
+          const int B2 = 9;
+          const int C2 = 10;
+          const int D2 = 11;
+          const int E2 = 12;
+          const int F2 = 13;
+          const int G2 = 14;
+          const int H2 = 15;
+          const int A3 = 16;
+          const int B3 = 17;
+          const int C3 = 18;
+          const int D3 = 19;
+          const int E3 = 20;
+          const int F3 = 21;
+          const int G3 = 22;
+          const int H3 = 23;
+          const int A4 = 24;
+          const int B4 = 25;
+          const int C4 = 26;
+          const int D4 = 27;
+          const int E4 = 28;
+          const int F4 = 29;
+          const int G4 = 30;
+          const int H4 = 31;
+          const int A5 = 32;
+          const int B5 = 33;
+          const int C5 = 34;
+          const int D5 = 35;
+          const int E5 = 36;
+          const int F5 = 37;
+          const int G5 = 38;
+          const int H5 = 39;
+          const int A6 = 40;
+          const int B6 = 41;
+          const int C6 = 42;
+          const int D6 = 43;
+          const int E6 = 44;
+          const int F6 = 45;
+          const int G6 = 46;
+          const int H6 = 47;
+          const int A7 = 48;
+          const int B7 = 49;
+          const int C7 = 50;
+          const int D7 = 51;
+          const int E7 = 52;
+          const int F7 = 53;
+          const int G7 = 54;
+          const int H7 = 55;
+          const int A8 = 56;
+          const int B8 = 57;
+          const int C8 = 58;
+          const int D8 = 59;
+          const int E8 = 60;
+          const int F8 = 61;
+          const int G8 = 62;
+          const int H8 = 63;
+          const int NOINDEX = -1;
 
-        static int MAX_KXK = MAX_KKINDEX * 64;
-        static int MAX_kabk = MAX_KKINDEX * 64 * 64;
-        static int MAX_kakb = MAX_KKINDEX * 64 * 64;
-        static int MAX_kpk = 24 * 64 * 64;
-        static int MAX_kakp = 24 * 64 * 64 * 64;
-        static int MAX_kapk = 24 * 64 * 64 * 64;
-        static int MAX_kppk = MAX_PPINDEX * 64 * 64;
-        static int MAX_kpkp = MAX_PpINDEX * 64 * 64;
-        static int MAX_kaak = MAX_KKINDEX * MAX_AAINDEX;
-        static int MAX_kabkc = MAX_KKINDEX * 64 * 64 * 64;
-        static int MAX_kabck = MAX_KKINDEX * 64 * 64 * 64;
-        static int MAX_kaakb = MAX_KKINDEX * MAX_AAINDEX * 64;
-        static int MAX_kaabk = MAX_KKINDEX * MAX_AAINDEX * 64;
-        static int MAX_kabbk = MAX_KKINDEX * MAX_AAINDEX * 64;
-        static int MAX_kaaak = MAX_KKINDEX * MAX_AAAINDEX;
-        static int MAX_kapkb = 24 * 64 * 64 * 64 * 64;
-        static int MAX_kabkp = 24 * 64 * 64 * 64 * 64;
-        static int MAX_kabpk = 24 * 64 * 64 * 64 * 64;
-        //static int MAX_kppka = MAX_PPINDEX * 64 * 64 * 64;
-        //static int MAX_kappk = MAX_PPINDEX * 64 * 64 * 64;
-        //static int MAX_kapkp = MAX_PPINDEX * 64 * 64 * 64;
-        static int MAX_kppka = MAX_kppk * 64;
-        static int MAX_kappk = MAX_kppk * 64;
-        static int MAX_kapkp = MAX_kpkp * 64;
-        static int MAX_kaapk = 24 * MAX_AAINDEX * 64 * 64;
-        static int MAX_kaakp = 24 * MAX_AAINDEX * 64 * 64;
-        static int MAX_kppkp = 24 * MAX_PP48_INDEX * 64 * 64;
-        static int MAX_kpppk = MAX_PPP48_INDEX * 64 * 64;
+        List<int> whitePieceSquares = new List<int>();
+        List<int> blackPieceSquares = new List<int>();
+        const int MAX_KKINDEX = 462;
+        const int MAX_PPINDEX = 576;
+        const int MAX_PpINDEX = (24 * 48);
+        const int MAX_AAINDEX = ((63 - 62) + (62 * (127 - 62) / 2) - 1 + 1);
+        const int MAX_AAAINDEX = (64 * 21 * 31);
+        const int MAX_PPP48_INDEX = 8648;
+        const int MAX_PP48_INDEX = (1128);
 
-        static int PLYSHIFT = 3;
-        static int INFOMASK = 7;
+            const int MAX_KXK = MAX_KKINDEX * 64;
+            const int MAX_kabk = MAX_KKINDEX * 64 * 64;
+            const int MAX_kakb = MAX_KKINDEX * 64 * 64;
+            const int MAX_kpk = 24 * 64 * 64;
+            const int MAX_kakp = 24 * 64 * 64 * 64;
+            const int MAX_kapk = 24 * 64 * 64 * 64;
+            const int MAX_kppk = MAX_PPINDEX * 64 * 64;
+            const int MAX_kpkp = MAX_PpINDEX * 64 * 64;
+            const int MAX_kaak = MAX_KKINDEX * MAX_AAINDEX;
+            const int MAX_kabkc = MAX_KKINDEX * 64 * 64 * 64;
+            const int MAX_kabck = MAX_KKINDEX * 64 * 64 * 64;
+            const int MAX_kaakb = MAX_KKINDEX * MAX_AAINDEX * 64;
+            const int MAX_kaabk = MAX_KKINDEX * MAX_AAINDEX * 64;
+            const int MAX_kabbk = MAX_KKINDEX * MAX_AAINDEX * 64;
+            const int MAX_kaaak = MAX_KKINDEX * MAX_AAAINDEX;
+            const int MAX_kapkb = 24 * 64 * 64 * 64 * 64;
+            const int MAX_kabkp = 24 * 64 * 64 * 64 * 64;
+            const int MAX_kabpk = 24 * 64 * 64 * 64 * 64;
+            //  int MAX_kppka = MAX_PPINDEX * 64 * 64 * 64;
+            //  int MAX_kappk = MAX_PPINDEX * 64 * 64 * 64;
+            //  int MAX_kapkp = MAX_PPINDEX * 64 * 64 * 64;
+            const int MAX_kppka = MAX_kppk * 64;
+            const int MAX_kappk = MAX_kppk * 64;
+            const int MAX_kapkp = MAX_kpkp * 64;
+            const int MAX_kaapk = 24 * MAX_AAINDEX * 64 * 64;
+            const int MAX_kaakp = 24 * MAX_AAINDEX * 64 * 64;
+            const int MAX_kppkp = 24 * MAX_PP48_INDEX * 64 * 64;
+            const int MAX_kpppk = MAX_PPP48_INDEX * 64 * 64;
 
-        internal static Func<int> currentPctoi;
+          const int PLYSHIFT = 3;
+          const int INFOMASK = 7;
+
+        internal Func<int> currentPctoi;
 
         class endgamekey
         {
@@ -151,211 +157,217 @@ namespace Gaviota
             }
         };
 
-        static EGTB()
+        private Dictionary<string, endgamekey> egkey;
+
+        public EGTB()
         {
             // stub, needed to initialize variables
+            egkey = new Dictionary<string, endgamekey>()
+            {
+                { "kqk", new endgamekey(MAX_KXK, 1, kxk_pctoindex) },
+                { "krk", new endgamekey(MAX_KXK, 1, kxk_pctoindex) },
+                { "kbk", new endgamekey(MAX_KXK, 1, kxk_pctoindex) },
+                { "knk", new endgamekey(MAX_KXK, 1, kxk_pctoindex) },
+                { "kpk", new endgamekey(MAX_kpk, 24, kpk_pctoindex) },
+
+                { "kqkq", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+                { "kqkr", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+                { "kqkb", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+                { "kqkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+
+                { "krkr", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+                { "krkb", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+                { "krkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+
+                { "kbkb", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+                { "kbkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+
+                { "knkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
+                /**/
+                { "kqqk", new endgamekey(MAX_kaak, 1, kaak_pctoindex) },
+                { "kqrk", new endgamekey(MAX_kabk, 1, kabk_pctoindex) },
+                { "kqbk", new endgamekey(MAX_kabk, 1, kabk_pctoindex) },
+                { "kqnk", new endgamekey(MAX_kabk, 1, kabk_pctoindex) },
+
+                { "krrk", new endgamekey(MAX_kaak, 1, kaak_pctoindex) },
+                { "krbk", new endgamekey(MAX_kabk, 1, kabk_pctoindex) },
+                { "krnk", new endgamekey(MAX_kabk, 1, kabk_pctoindex) },
+
+                { "kbbk", new endgamekey(MAX_kaak, 1, kaak_pctoindex) },
+                { "kbnk", new endgamekey(MAX_kabk, 1, kabk_pctoindex) },
+
+                { "knnk", new endgamekey(MAX_kaak, 1, kaak_pctoindex) },
+                /**/
+                /**/
+                { "kqkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex) },
+                { "krkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex) },
+                { "kbkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex) },
+                { "knkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex) },
+                /**/
+                { "kqpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex) },
+                { "krpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex) },
+                { "kbpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex) },
+                { "knpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex) },
+                /**/
+                { "kppk", new endgamekey(MAX_kppk, MAX_PPINDEX, kppk_pctoindex) },
+                /**/
+                { "kpkp", new endgamekey(MAX_kpkp, MAX_PpINDEX, kpkp_pctoindex) },
+
+                { "kppkp", new endgamekey(MAX_kppkp, 24 * MAX_PP48_INDEX, kppkp_pctoindex) },
+
+                { "kbbkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "kbbkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "knnkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "knnkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+
+                // pwned does use anything below here
+                { "kqqqk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex) },
+                { "kqqrk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex) },
+                { "kqqbk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex) },
+                { "kqqnk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex) },
+                { "kqrrk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex) },
+                { "kqrbk", new endgamekey(MAX_kabck, 1, kabck_pctoindex) },
+                { "kqrnk", new endgamekey(MAX_kabck, 1, kabck_pctoindex) },
+                { "kqbbk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex) },
+                { "kqbnk", new endgamekey(MAX_kabck, 1, kabck_pctoindex) },
+                { "kqnnk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex) },
+                { "krrrk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex) },
+                { "krrbk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex) },
+                { "krrnk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex) },
+                { "krbbk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex) },
+                { "krbnk", new endgamekey(MAX_kabck, 1, kabck_pctoindex) },
+                { "krnnk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex) },
+                { "kbbbk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex) },
+                { "kbbnk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex) },
+                { "kbnnk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex) },
+                { "knnnk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex) },
+                { "kqqkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "kqqkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "kqqkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "kqqkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "kqrkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqrkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqrkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqrkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqbkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqbkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqbkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqbkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqnkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqnkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqnkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kqnkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krrkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "krrkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "krrkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "krrkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "krbkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krbkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krbkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krbkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krnkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krnkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krnkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "krnkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kbbkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                //{ 84,"kbbkr", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
+                //{ 85,"kbbkb", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
+                { "kbbkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "kbnkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kbnkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kbnkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "kbnkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex) },
+                { "knnkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                { "knnkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
+                //{ 93,"knnkb", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
+                //{ 94,"knnkn", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
+
+                { "kqqpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex) },
+                { "kqrpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex) },
+                { "kqbpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex) },
+                { "kqnpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex) },
+                { "krrpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex) },
+                { "krbpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex) },
+                { "krnpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex) },
+                { "kbbpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex) },
+                { "kbnpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex) },
+                { "knnpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex) },
+
+                { "kqppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex) },
+                { "krppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex) },
+                { "kbppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex) },
+                { "knppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex) },
+
+                { "kqpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kqpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kqpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kqpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "krpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "krpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "krpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "krpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kbpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kbpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kbpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kbpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "knpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "knpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "knpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "knpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex) },
+                { "kppkq", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex) },
+                { "kppkr", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex) },
+                { "kppkb", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex) },
+                { "kppkn", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex) },
+
+                { "kqqkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex) },
+                { "kqrkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex) },
+                { "kqbkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex) },
+                { "kqnkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex) },
+                { "krrkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex) },
+                { "krbkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex) },
+                { "krnkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex) },
+                { "kbbkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex) },
+                { "kbnkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex) },
+                { "knnkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex) },
+
+                { "kqpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex) },
+                { "krpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex) },
+                { "kbpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex) },
+                { "knpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex) },
+
+                //{143,"kppkp", MAX_kppkp, 24*MAX_PP48_INDEX, kppkp_indextopc, kppkp_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
+                { "kpppk", new endgamekey(MAX_kpppk, MAX_PPP48_INDEX, kpppk_pctoindex) }
+            };
+
+            zipStream = new MemoryStream(Buffer_zipped);
+            packStream = new MemoryStream(Buffer_packed);
         }
 
-        static Dictionary<string, endgamekey> egkey = new Dictionary<string, endgamekey>()
-        {
-            { "kqk",  new endgamekey(MAX_KXK, 1, kxk_pctoindex)},
-            { "krk",  new endgamekey(MAX_KXK, 1, kxk_pctoindex)},
-            { "kbk",  new endgamekey(MAX_KXK, 1, kxk_pctoindex)},
-            { "knk",  new endgamekey(MAX_KXK, 1, kxk_pctoindex)},
-            { "kpk",  new endgamekey(MAX_kpk, 24, kpk_pctoindex)},
 
-            { "kqkq", new endgamekey(MAX_kakb, 1, kakb_pctoindex) },
-            { "kqkr", new endgamekey(MAX_kakb, 1, kakb_pctoindex)},
-            { "kqkb", new endgamekey(MAX_kakb, 1, kakb_pctoindex)},
-            { "kqkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex)},
 
-            { "krkr", new endgamekey(MAX_kakb, 1,  kakb_pctoindex)},
-            {"krkb", new endgamekey(MAX_kakb, 1, kakb_pctoindex)},
-            {"krkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex)},
+          SevenZip.Compression.LZMA.Decoder decoder = new SevenZip.Compression.LZMA.Decoder();
+          int[][] flipt = new int[64][];
 
-            {"kbkb", new endgamekey(MAX_kakb, 1,  kakb_pctoindex)},
-            {"kbkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex)},
+          int WE_FLAG = 1;
+          int NS_FLAG = 2;
+          int NW_SE_FLAG = 4;
 
-            {"knkn", new endgamekey(MAX_kakb, 1, kakb_pctoindex)},
-                    /**/
-            {"kqqk", new endgamekey(MAX_kaak, 1, kaak_pctoindex)},
-            {"kqrk", new endgamekey(MAX_kabk, 1,  kabk_pctoindex)},
-            {"kqbk", new endgamekey(MAX_kabk, 1,  kabk_pctoindex)},
-            {"kqnk", new endgamekey(MAX_kabk, 1,  kabk_pctoindex)},
-
-            {"krrk", new endgamekey(MAX_kaak, 1,  kaak_pctoindex)},
-            {"krbk", new endgamekey(MAX_kabk, 1, kabk_pctoindex)},
-            {"krnk",new endgamekey( MAX_kabk, 1,  kabk_pctoindex)},
-
-            {"kbbk", new endgamekey(MAX_kaak, 1,  kaak_pctoindex)},
-            {"kbnk", new endgamekey(MAX_kabk, 1,  kabk_pctoindex)},
-
-            {"knnk", new endgamekey(MAX_kaak, 1,  kaak_pctoindex)},
-                    /**/
-                    /**/
-            {"kqkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex)},
-            {"krkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex)},
-            {"kbkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex)},
-            {"knkp", new endgamekey(MAX_kakp, 24, kakp_pctoindex)},
-                    /**/
-            {"kqpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex)},
-            {"krpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex)},
-            {"kbpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex)},
-            {"knpk", new endgamekey(MAX_kapk, 24, kapk_pctoindex)},
-                    /**/
-            {"kppk", new endgamekey(MAX_kppk, MAX_PPINDEX , kppk_pctoindex)},
-                    /**/
-            {"kpkp", new endgamekey(MAX_kpkp, MAX_PpINDEX , kpkp_pctoindex)},
-
-            {"kppkp", new endgamekey(MAX_kppkp, 24*MAX_PP48_INDEX, kppkp_pctoindex) },
-
-            {"kbbkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
-            {"kbbkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
-            {"knnkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
-            {"knnkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex) },
-
-            // pwned does use anything below here
-            { "kqqqk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex)},
-            { "kqqrk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex)},
-            { "kqqbk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex)},
-            { "kqqnk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex)},
-            { "kqrrk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex)},
-            { "kqrbk", new endgamekey(MAX_kabck, 1, kabck_pctoindex)},
-            { "kqrnk", new endgamekey(MAX_kabck, 1, kabck_pctoindex)},
-            { "kqbbk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex)},
-            { "kqbnk", new endgamekey(MAX_kabck, 1, kabck_pctoindex)},
-            { "kqnnk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex)},
-            { "krrrk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex)},
-            { "krrbk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex)},
-            { "krrnk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex)},
-            { "krbbk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex)},
-            { "krbnk", new endgamekey(MAX_kabck, 1, kabck_pctoindex)},
-            { "krnnk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex)},
-            { "kbbbk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex)},
-            { "kbbnk", new endgamekey(MAX_kaabk, 1, kaabk_pctoindex)},
-            { "kbnnk", new endgamekey(MAX_kabbk, 1, kabbk_pctoindex)},
-            { "knnnk", new endgamekey(MAX_kaaak, 1, kaaak_pctoindex)},
-            { "kqqkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "kqqkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "kqqkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "kqqkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "kqrkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqrkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqrkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqrkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqbkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqbkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqbkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqbkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqnkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqnkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqnkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kqnkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krrkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "krrkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "krrkb", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "krrkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "krbkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krbkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krbkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krbkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krnkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krnkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krnkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "krnkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kbbkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            //{ 84,"kbbkr", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
-            //{ 85,"kbbkb", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
-            { "kbbkn", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "kbnkq", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kbnkr", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kbnkb", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "kbnkn", new endgamekey(MAX_kabkc, 1, kabkc_pctoindex)},
-            { "knnkq", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            { "knnkr", new endgamekey(MAX_kaakb, 1, kaakb_pctoindex)},
-            //{ 93,"knnkb", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
-            //{ 94,"knnkn", MAX_kaakb, 1, kaakb_indextopc, kaakb_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
-
-            { "kqqpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex)},
-            { "kqrpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex)},
-            { "kqbpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex)},
-            { "kqnpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex)},
-            { "krrpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex)},
-            { "krbpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex)},
-            { "krnpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex)},
-            { "kbbpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex)},
-            { "kbnpk", new endgamekey(MAX_kabpk, 24, kabpk_pctoindex)},
-            { "knnpk", new endgamekey(MAX_kaapk, 24, kaapk_pctoindex)},
-
-            { "kqppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex)},
-            { "krppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex)},
-            { "kbppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex)},
-            { "knppk", new endgamekey(MAX_kappk, MAX_PPINDEX, kappk_pctoindex)},
-
-            { "kqpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kqpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kqpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kqpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "krpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "krpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "krpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "krpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kbpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kbpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kbpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kbpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "knpkq", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "knpkr", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "knpkb", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "knpkn", new endgamekey(MAX_kapkb, 24, kapkb_pctoindex)},
-            { "kppkq", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex)},
-            { "kppkr", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex)},
-            { "kppkb", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex)},
-            { "kppkn", new endgamekey(MAX_kppka, MAX_PPINDEX, kppka_pctoindex)},
-
-            { "kqqkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex)},
-            { "kqrkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex)},
-            { "kqbkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex)},
-            { "kqnkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex)},
-            { "krrkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex)},
-            { "krbkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex)},
-            { "krnkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex)},
-            { "kbbkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex)},
-            { "kbnkp", new endgamekey(MAX_kabkp, 24, kabkp_pctoindex)},
-            { "knnkp", new endgamekey(MAX_kaakp, 24, kaakp_pctoindex)},
-
-            { "kqpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex)},
-            { "krpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex)},
-            { "kbpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex)},
-            { "knpkp", new endgamekey(MAX_kapkp, MAX_PpINDEX, kapkp_pctoindex)},
-
-            //{143,"kppkp", MAX_kppkp, 24*MAX_PP48_INDEX, kppkp_indextopc, kppkp_pctoindex, NULL ,  NULL   ,NULL ,0, 0 },
-            { "kpppk", new endgamekey(MAX_kpppk, MAX_PPP48_INDEX, kpppk_pctoindex)},
-        };
-
-        static SevenZip.Compression.LZMA.Decoder decoder = new SevenZip.Compression.LZMA.Decoder();
-        static int[][] flipt = new int[64][];
-
-        static int WE_FLAG = 1;
-        static int NS_FLAG = 2;
-        static int NW_SE_FLAG = 4;
-
-        static int map24_b(int s)
+          int map24_b(int s)
         {
             s -= 8;
             return ((s & 3) + s) >> 1;
         }
 
-        static int[][] pp48_idx = new int[48][];
-        static int[] pp48_sq_x = new int[MAX_PP48_INDEX];
-        static int[] pp48_sq_y = new int[MAX_PP48_INDEX];
-        static int[][][] ppp48_idx = new int[48][][];
+          int[][] pp48_idx = new int[48][];
+          int[] pp48_sq_x = new int[MAX_PP48_INDEX];
+          int[] pp48_sq_y = new int[MAX_PP48_INDEX];
+          int[][][] ppp48_idx = new int[48][][];
 
-        static int[] ppp48_sq_x = new int[MAX_PPP48_INDEX];
-        static int[] ppp48_sq_y = new int[MAX_PPP48_INDEX];
-        static int[] ppp48_sq_z = new int[MAX_PPP48_INDEX];
+          int[] ppp48_sq_x = new int[MAX_PPP48_INDEX];
+          int[] ppp48_sq_y = new int[MAX_PPP48_INDEX];
+          int[] ppp48_sq_z = new int[MAX_PPP48_INDEX];
 
-        static int[] itosq = new int[48]  
+          static int[] itosq = new int[48]  
         {
             H7,G7,F7,E7,
             H6,G6,F6,E6,
@@ -371,12 +383,12 @@ namespace Gaviota
             D2,C2,B2,A2
         };
 
-        static bool in_queenside(int x)
+          bool in_queenside(int x)
         {
             return 0 == (x & (1 << 2));
         }
 
-        static void init_ppp48_idx()
+          void init_ppp48_idx()
         {
             int MAX_I = 48;
             int MAX_J = 48;
@@ -446,7 +458,7 @@ namespace Gaviota
         }
 
 
-        static int kpppk_pctoindex()
+        int kpppk_pctoindex()
         {
             int BLOCK_A = 64 * 64;
             int BLOCK_B = 64;
@@ -491,7 +503,7 @@ namespace Gaviota
             return (int)ppp48_slice * BLOCK_A + (int)wk * BLOCK_B + (int)bk;
         }
 
-        static int kapkb_pctoindex()
+        int kapkb_pctoindex()
         {
             int BLOCK_A = 64 * 64 * 64 * 64;
             int BLOCK_B = 64 * 64 * 64;
@@ -528,7 +540,7 @@ namespace Gaviota
             return pslice * BLOCK_A + (int)wk * BLOCK_B + (int)bk * BLOCK_C + (int)wa * BLOCK_D + (int)ba;
         }
 
-        static int kabpk_pctoindex()
+        int kabpk_pctoindex()
         {
             int BLOCK_A = 64 * 64 * 64 * 64;
             int BLOCK_B = 64 * 64 * 64;
@@ -557,7 +569,7 @@ namespace Gaviota
         }
 
 
-        static int kabkp_pctoindex()
+        int kabkp_pctoindex()
         {
             int BLOCK_A = 64 * 64 * 64 * 64;
             int BLOCK_B = 64 * 64 * 64;
@@ -595,7 +607,7 @@ namespace Gaviota
             return pslice * BLOCK_A + (int)wk * BLOCK_B + (int)bk * BLOCK_C + (int)wa * BLOCK_D + (int)wb;
         }
 
-        static int kaapk_pctoindex()
+        int kaapk_pctoindex()
         {
             int BLOCK_C = MAX_AAINDEX;
             int BLOCK_B = 64 * BLOCK_C;
@@ -631,7 +643,7 @@ namespace Gaviota
         }
 
 
-        static int kaakp_pctoindex()
+          int kaakp_pctoindex()
         {
             int BLOCK_C = MAX_AAINDEX;
             int BLOCK_B = 64 * BLOCK_C;
@@ -667,7 +679,7 @@ namespace Gaviota
             return pslice * (int)BLOCK_A + (int)wk * (int)BLOCK_B + (int)bk * (int)BLOCK_C + aa_combo;
         }
 
-        static int kapkp_pctoindex()
+        int kapkp_pctoindex()
         {
             int BLOCK_A = 64 * 64 * 64;
             int BLOCK_B = 64 * 64;
@@ -709,7 +721,7 @@ namespace Gaviota
             return pp_slice * (int)BLOCK_A + (int)wk * (int)BLOCK_B + (int)bk * (int)BLOCK_C + (int)wa;
         }
 
-        static int kappk_pctoindex()
+        int kappk_pctoindex()
         {
             int BLOCK_A = 64 * 64 * 64;
             int BLOCK_B = 64 * 64;
@@ -751,7 +763,7 @@ namespace Gaviota
             return pp_slice * (int)BLOCK_A + (int)wk * (int)BLOCK_B + (int)bk * (int)BLOCK_C + (int)wa;
         }
 
-        static int kppka_pctoindex()
+        int kppka_pctoindex()
         {
             int BLOCK_A = 64 * 64 * 64;
             int BLOCK_B = 64 * 64;
@@ -793,7 +805,7 @@ namespace Gaviota
             return pp_slice * (int)BLOCK_A + (int)wk * (int)BLOCK_B + (int)bk * (int)BLOCK_C + (int)ba;
         }
 
-        static int kabck_pctoindex()
+          int kabck_pctoindex()
         {
             int N_WHITE = 4;
             int N_BLACK = 1;
@@ -839,7 +851,7 @@ namespace Gaviota
 
         }
 
-        static int kabbk_pctoindex()
+        int kabbk_pctoindex()
         {
             int N_WHITE = 4;
             int N_BLACK = 1;
@@ -884,7 +896,7 @@ namespace Gaviota
             return ki * BLOCK_Ax + ai * BLOCK_Bx + (int)ws[1];
         }
 
-        static int kaabk_pctoindex()
+        int kaabk_pctoindex()
         {
             int N_WHITE = 4;
             int N_BLACK = 1;
@@ -929,7 +941,7 @@ namespace Gaviota
             return ki * BLOCK_Ax + ai * BLOCK_Bx + (int)ws[3];
         }
 
-        static int init_pp48_idx()
+          int init_pp48_idx()
         {
             /* modifies pp48_idx[][], pp48_sq_x[], pp48_sq_y[] */
 
@@ -979,7 +991,7 @@ namespace Gaviota
             return idx;
         }
 
-        static int kaaak_pctoindex()
+        int kaaak_pctoindex()
         {
             int N_WHITE = 4;
             int N_BLACK = 1;
@@ -1052,9 +1064,9 @@ namespace Gaviota
             return ki * BLOCK_Ax + ai;
         }
 
-        static int[] aaa_base = new int[64];
+          int[] aaa_base = new int[64];
 
-        static int aaa_getsubi(int x, int y, int z)
+          int aaa_getsubi(int x, int y, int z)
         {
             int calc_idx, bse;
 
@@ -1064,9 +1076,9 @@ namespace Gaviota
             return calc_idx;
         }
 
-        static int[][] aaa_xyz = new int[MAX_AAAINDEX][];
+          int[][] aaa_xyz = new int[MAX_AAAINDEX][];
 
-        static void init_aaa()
+          void init_aaa()
         {
             int[] comb = new int[64];
             int accum;
@@ -1123,7 +1135,7 @@ namespace Gaviota
         }
 
 
-        static int kppkp_pctoindex()
+          int kppkp_pctoindex()
         {
             int BLOCK_Ax = MAX_PP48_INDEX * 64 * 64;
             int BLOCK_Bx = 64 * 64;
@@ -1161,7 +1173,7 @@ namespace Gaviota
         }
 
 
-        static int kaakb_pctoindex()
+        int kaakb_pctoindex()
         {
             int N_WHITE = 3;
             int N_BLACK = 2;
@@ -1205,7 +1217,7 @@ namespace Gaviota
             return ki * BLOCK_Ax + ai * BLOCK_Bx + (int)bs[1];
         }
 
-        static int kabkc_pctoindex()
+        int kabkc_pctoindex()
         {
             int N_WHITE = 3;
             int N_BLACK = 2;
@@ -1254,10 +1266,10 @@ namespace Gaviota
         }
 
 
-        static int[][] aaidx = new int[64][];
-        static byte[] aabase = new byte[MAX_AAINDEX];
+        int[][] aaidx = new int[64][];
+        byte[] aabase = new byte[MAX_AAINDEX];
 
-        static int kpkp_pctoindex()
+          int kpkp_pctoindex()
         {
             int BLOCK_Ax = 64 * 64;
             int BLOCK_Bx = 64;
@@ -1298,7 +1310,7 @@ namespace Gaviota
         }
 
 
-        static void pp_putanchorfirst(int a, int b, ref int out_anchor, ref int out_loosen)
+          void pp_putanchorfirst(int a, int b, ref int out_anchor, ref int out_loosen)
         {
             int anchor, loosen;
 
@@ -1364,7 +1376,7 @@ namespace Gaviota
             return;
         }
 
-        static int wsq_to_pidx24(int pawn)
+          int wsq_to_pidx24(int pawn)
         {
             int idx24;
             int sq = pawn;
@@ -1377,7 +1389,7 @@ namespace Gaviota
             return (int)idx24;
         }
 
-        static int wsq_to_pidx48(int pawn)
+          int wsq_to_pidx48(int pawn)
         {
             int idx48;
             int sq = pawn;
@@ -1388,10 +1400,10 @@ namespace Gaviota
             return (int)idx48;
         }
 
-        static int[][] ppidx = new int[24][];
+        int[][] ppidx = new int[24][];
 
 
-        static int kppk_pctoindex()
+        int kppk_pctoindex()
         {
             int BLOCK_Ax = 64 * 64;
             int BLOCK_Bx = 64;
@@ -1428,7 +1440,7 @@ namespace Gaviota
             return pp_slice * BLOCK_Ax + (int)wk * BLOCK_Bx + (int)bk;
         }
 
-        static int kapk_pctoindex()
+        int kapk_pctoindex()
         {
             int BLOCK_Ax = 64 * 64 * 64;
             int BLOCK_Bx = 64 * 64;
@@ -1462,7 +1474,7 @@ namespace Gaviota
             return pslice * BLOCK_Ax + (int)wk * BLOCK_Bx + (int)bk * BLOCK_Cx + (int)wa;
         }
 
-        static int kabk_pctoindex()
+        int kabk_pctoindex()
         {
             int BLOCK_Ax = 64 * 64;
             int BLOCK_Bx = 64;
@@ -1512,7 +1524,7 @@ namespace Gaviota
 
         }
 
-        static int kakp_pctoindex()
+        int kakp_pctoindex()
         {
             int BLOCK_Ax = 64 * 64 * 64;
             int BLOCK_Bx = 64 * 64;
@@ -1547,7 +1559,7 @@ namespace Gaviota
             return pslice * BLOCK_Ax + (int)wk * BLOCK_Bx + (int)bk * BLOCK_Cx + (int)wa;
         }
 
-        static void init_aaidx()
+        void init_aaidx()
         {
             /* modifies aabase[], aaidx[][] */
 
@@ -1584,7 +1596,7 @@ namespace Gaviota
             }
         }
 
-        static int kaak_pctoindex()
+        int kaak_pctoindex()
         {
             int N_WHITE = 3;
             int N_BLACK = 1;
@@ -1628,7 +1640,7 @@ namespace Gaviota
         }
 
 
-        static int kakb_pctoindex()
+        int kakb_pctoindex()
         {
             int BLOCK_Ax = 64 * 64;
             int BLOCK_Bx = 64;
@@ -1675,7 +1687,7 @@ namespace Gaviota
             return ki * BLOCK_Ax + (int)ws[1] * BLOCK_Bx + (int)bs[1];
         }
 
-        static void init_flipt()
+        void init_flipt()
         {
             int i, j;
             for (i = 0; i < 64; i++)
@@ -1688,10 +1700,10 @@ namespace Gaviota
             }
         }
 
-        static int[] pp_hi24 = new int[MAX_PPINDEX]; /* was unsigned int */
-        static int[] pp_lo48 = new int[MAX_PPINDEX];
+        int[] pp_hi24 = new int[MAX_PPINDEX]; /* was unsigned int */
+        int[] pp_lo48 = new int[MAX_PPINDEX];
 
-        static int init_ppidx()
+        int init_ppidx()
         {
             /* modifies ppidx[][], pp_hi24[], pp_lo48[] */
             int i, j;
@@ -1752,15 +1764,15 @@ namespace Gaviota
             return idx;
         }
 
-        static string egtb_root_path;
+        string egtb_root_path;
 
-        public static void Create()
+        public   void Create()
         {
-            // so that all the other statics get initialized before we call init
+            // so that all the other  s get initialized before we call init
             // nothing should really go here, and this function should be called before doing anything with the EGTB's, including initializing :)
         }
 
-        public static void Init(string egtb_path, IStreamCreator sc)
+        public void Init(string egtb_path, IStreamCreator sc)
         {
             streamCreator = sc;
             egtb_root_path = egtb_path;
@@ -1796,9 +1808,9 @@ namespace Gaviota
             decoder.SetDecoderProperties(properties);
         }
 
-        static bool Reversed = false;
+          bool Reversed = false;
 
-        //static void SetupPieceArrayFromBoard(Board b)
+        //  void SetupPieceArrayFromBoard(Board b)
         //{
         //    currentFilename = "";
 
@@ -1915,7 +1927,7 @@ namespace Gaviota
         //    }
         //}
 
-        static void list_sq_flipNS(List<int> s)
+        void list_sq_flipNS(List<int> s)
         {
             for (int i = 0; i < s.Count; i++)
             {
@@ -1923,10 +1935,10 @@ namespace Gaviota
             }
         }
 
-        static List<int> whitePieceTypes = new List<int>();
-        static List<int> blackPieceTypes = new List<int>();
+        List<int> whitePieceTypes = new List<int>();
+        List<int> blackPieceTypes = new List<int>();
 
-        static void sortlists(List<int> ws, List<int> wp)
+        void sortlists(List<int> ws, List<int> wp)
         {
             int i, j;
             int ts;
@@ -1948,9 +1960,9 @@ namespace Gaviota
             }
         }
 
-        static string newFile;
+        string newFile;
 
-        static void UndoReversal(ref int side, ref int epsq)
+        void UndoReversal(ref int side, ref int epsq)
         {
             list_sq_flipNS(whitePieceSquares);
             list_sq_flipNS(blackPieceSquares);
@@ -1972,7 +1984,7 @@ namespace Gaviota
 
         }
 
-        static bool SetupEGTB(List<int> whiteSquares, List<int> whiteTypes, List<int> blackSquares, List<int> blackTypes, ref int side, ref int epsq, bool alreadyReversed = false)
+        bool SetupEGTB(List<int> whiteSquares, List<int> whiteTypes, List<int> blackSquares, List<int> blackTypes, ref int side, ref int epsq, bool alreadyReversed = false)
         {
             sortlists(whiteSquares, whiteTypes);
             sortlists(blackSquares, blackTypes);
@@ -2039,7 +2051,7 @@ namespace Gaviota
             return true;
         }
 
-        public static int inv_dtm(int x)
+        public int inv_dtm(int x)
         {
             int mat;
 
@@ -2058,7 +2070,7 @@ namespace Gaviota
         }
 
 
-        public static ProbeResultType Probe(List<int> whiteSquares, List<int> blackSquares, List<int> whiteTypes, List<int> blackTypes, int realside, int epsq)
+        public ProbeResultType Probe(List<int> whiteSquares, List<int> blackSquares, List<int> whiteTypes, List<int> blackTypes, int realside, int epsq)
         {
             ProbeResultType probeResult = new ProbeResultType();
 
@@ -2147,7 +2159,7 @@ namespace Gaviota
             return probeResult;
         }
 
-        static void LoadTableDescriptions()
+        void LoadTableDescriptions()
         {
             string[] files = Directory.GetFiles(egtb_root_path);
             int n = files.Length;
@@ -2169,7 +2181,7 @@ namespace Gaviota
             }
         }
 
-        //static string BoardToPieces(Board board)
+        //  string BoardToPieces(Board board)
         //{
         //    int[,] pieceCount = new int[2, 7];
 
@@ -2209,9 +2221,9 @@ namespace Gaviota
         //    return "";
         //}
 
-        static IStreamCreator streamCreator;
+        IStreamCreator streamCreator;
 
-        static bool OpenEndgameTableBase(string pieces)
+         bool OpenEndgameTableBase(string pieces)
         {
             if (currentFilename == pieces)
                 return true;
@@ -2236,7 +2248,7 @@ namespace Gaviota
             return (currentStream != null);
         }
 
-        static int egtb_block_getnumber(int side, int idx)
+        int egtb_block_getnumber(int side, int idx)
         {
             int blocks_per_side;
             int block_in_side;
@@ -2248,7 +2260,7 @@ namespace Gaviota
             return side * blocks_per_side + block_in_side; /* block */
         }
 
-        static int egtb_block_getsize(int idx)
+        int egtb_block_getsize(int idx)
         {
             int blocksz = entries_per_block;
             int maxindex = egkey[currentFilename].maxindex;
@@ -2272,12 +2284,12 @@ namespace Gaviota
             internal int[] blockindex;
         };
 
-        static Dictionary<string, ZIPINFO> Zipinfo = new Dictionary<string, ZIPINFO>();
+        Dictionary<string, ZIPINFO> Zipinfo = new Dictionary<string, ZIPINFO>();
 
-        static int MAX_EGKEYS = 145;
-        static int SZ = 4;
+        int MAX_EGKEYS = 145;
+        int SZ = 4;
 
-        static bool fread32(ref ulong y)
+        bool fread32(ref ulong y)
         {
             ulong x = 0;
             byte[] p = new byte[SZ];
@@ -2293,7 +2305,7 @@ namespace Gaviota
             return true;
         }
 
-        static bool egtb_loadindexes()
+        bool egtb_loadindexes()
         {
             ulong blocksize = 1;
             ulong tailblocksize1 = 0;
@@ -2343,7 +2355,7 @@ namespace Gaviota
             return true;
         }
 
-        static int egtb_block_getsize_zipped(int block)
+        int egtb_block_getsize_zipped(int block)
         {
             int i, j;
             i = Zipinfo[currentFilename].blockindex[block];
@@ -2352,7 +2364,7 @@ namespace Gaviota
             return j - i;
         }
 
-        static bool egtb_block_park(int block)
+        bool egtb_block_park(int block)
         {
             int i;
             long fseek_i;
@@ -2364,12 +2376,12 @@ namespace Gaviota
             return 0 == currentStream.Seek(fseek_i, SeekOrigin.Begin);
         }
 
-        static int EGTB_MAXBLOCKSIZE = 65536;
-        static byte[] Buffer_zipped = new byte[EGTB_MAXBLOCKSIZE];
-        static byte[] Buffer_packed = new byte[EGTB_MAXBLOCKSIZE];
+        const int EGTB_MAXBLOCKSIZE = 65536;
+        byte[] Buffer_zipped = new byte[EGTB_MAXBLOCKSIZE];
+        byte[] Buffer_packed = new byte[EGTB_MAXBLOCKSIZE];
 
         /* bp:buffer packed to out:distance to mate buffer */
-        static bool egtb_block_unpack(int side, int n, byte[] bp, ref int[] dtm)
+        bool egtb_block_unpack(int side, int n, byte[] bp, ref int[] dtm)
         {
             for (int i = 0; i < n; i++)
             {
@@ -2378,7 +2390,7 @@ namespace Gaviota
             return true;
         }
 
-        //public static byte[] Decompress(byte[] inputBytes)
+        //public   byte[] Decompress(byte[] inputBytes)
         //{
         //    MemoryStream newInStream = new MemoryStream(inputBytes);
 
@@ -2411,7 +2423,7 @@ namespace Gaviota
 
         //}
 
-        static void split_index(int entries_per_block, int i, ref int o, ref int r)
+        void split_index(int entries_per_block, int i, ref int o, ref int r)
         {
             int n;
             n = i / entries_per_block;
@@ -2421,7 +2433,7 @@ namespace Gaviota
         }
 
 
-        //static bool get_dtm_from_cache(int side, int idx, ref int dtm)
+        //  bool get_dtm_from_cache(int side, int idx, ref int dtm)
         //{
         //    int offset = 0;
         //    int remainder = 0;
@@ -2451,6 +2463,7 @@ namespace Gaviota
                 side = stm;
                 offset = o;
                 pcache = new int[16384];
+
             }
 
             public override int GetHashCode()
@@ -2477,30 +2490,24 @@ namespace Gaviota
             }
         }
 
-        //static void removepiece(List<int> ys, List<PieceType> yp, int j)
+        //  void removepiece(List<int> ys, List<PieceType> yp, int j)
         //{
         //    ys.RemoveAt(j);
         //    yp.RemoveAt(j);
         //}
 
-        static int NOSQUARE = 0;
 
-        static List<TableBlock> blockCache = new List<TableBlock>();
-
-        static Stream zipStream = new MemoryStream(Buffer_zipped);
-        static Stream packStream = new MemoryStream(Buffer_packed);
-
-        static int map88(int x)
+        int map88(int x)
         {
             return x + (x & 56);
         }
 
-        static int unmap88(int x)
+        int unmap88(int x)
         {
             return x + (x & 7) >> 1;
         }
 
-        static int FindBlockIndex(int offset, int side)
+        int FindBlockIndex(int offset, int side)
         {
             int f = -1;
             for (int i = 0; i < blockCache.Count; i++)
@@ -2516,14 +2523,14 @@ namespace Gaviota
             return f;
         }
 
-        static void removepiece(ref List<int> ys, ref List<int> yp, int j)
+        void removepiece(ref List<int> ys, ref List<int> yp, int j)
         {
             ys.RemoveAt(j);
             yp.RemoveAt(j);
         }
 
 
-        static bool tb_probe_(int side, int epsq, ref int dtm)
+        bool tb_probe_(int side, int epsq, ref int dtm)
         {
             int idx = currentPctoi();
 
@@ -2569,17 +2576,17 @@ namespace Gaviota
             return true;
         }
 
-        static int Opp(int side)
+        int Opp(int side)
         {
             if (side == 0)
                 return 1;
 
             return 0;
         }
-        //static uint INFOMASK = 7;
-        //static int PLYSHIFT = 3;
+        //  uint INFOMASK = 7;
+        //  int PLYSHIFT = 3;
 
-        static int adjust_up(int dist)
+        int adjust_up(int dist)
         {
             uint udist = (uint)dist;
             uint sw = (uint)(udist & INFOMASK);
@@ -2594,7 +2601,7 @@ namespace Gaviota
         }
 
 
-        static int bestx(int side, int a, int b)
+        int bestx(int side, int a, int b)
         {
             int key;
             int[][] comparison = new int[4][]  {
@@ -2635,7 +2642,7 @@ namespace Gaviota
             return ret;
         }
 
-        static bool egtb_get_dtm(int side, int epsq, ref int dtm)
+        bool egtb_get_dtm(int side, int epsq, ref int dtm)
         {
             bool ok = tb_probe_(side, epsq, ref dtm);
 
@@ -2725,17 +2732,17 @@ namespace Gaviota
             return ok;
         }
 
-        static void unpackdist(int d, ref int res, ref int ply)
+        void unpackdist(int d, ref int res, ref int ply)
         {
             ply = d >> PLYSHIFT;
             res = d & INFOMASK;
         }
 
-        static int LZMA_PROPS_SIZE = 5;
-        static int LZMA86_SIZE_OFFSET = (1 + LZMA_PROPS_SIZE);
-        static int LZMA86_HEADER_SIZE = (LZMA86_SIZE_OFFSET + 8);
+        const int LZMA_PROPS_SIZE = 5;
+        const int LZMA86_SIZE_OFFSET = (1 + LZMA_PROPS_SIZE);
+        const int LZMA86_HEADER_SIZE = (LZMA86_SIZE_OFFSET + 8);
 
-        static bool egtb_filepeek(int side, int idx, ref int dtm)
+        bool egtb_filepeek(int side, int idx, ref int dtm)
         {
             bool ok;
             int x = 0;
@@ -2752,7 +2759,7 @@ namespace Gaviota
             return ok;
         }
 
-        static bool fread_entry_packed(int side, ref int px)
+        bool fread_entry_packed(int side, ref int px)
         {
             int p = currentStream.ReadByte();
             px = dtm_unpack(side, p);
@@ -2760,31 +2767,31 @@ namespace Gaviota
             return true;
         }
 
-        static bool fpark_entry_packed(int side, int idx, int max)
+        bool fpark_entry_packed(int side, int idx, int max)
         {
             long fseek_i = ((int)side * max + idx);
             currentStream.Seek(fseek_i, SeekOrigin.Begin);
             return true;
         }
 
-        static int tb_DRAW = 0;
-        static int tb_WMATE = 1;
-        static int tb_BMATE = 2;
-        static int tb_FORBID = 3;
-        static int tb_UNKNOWN = 7;
-        static int iDRAW = tb_DRAW;
-        static int iWMATE = tb_WMATE;
-        static int iBMATE = tb_BMATE;
-        static int iFORBID = tb_FORBID;
+        const int tb_DRAW = 0;
+        const int tb_WMATE = 1;
+        const int tb_BMATE = 2;
+        const int tb_FORBID = 3;
+        const int tb_UNKNOWN = 7;
+        const int iDRAW = tb_DRAW;
+        const int iWMATE = tb_WMATE;
+        const int iBMATE = tb_BMATE;
+        const int iFORBID = tb_FORBID;
 
-        static int iDRAWt = tb_DRAW | 4;
-        static int iWMATEt = tb_WMATE | 4;
-        static int iBMATEt = tb_BMATE | 4;
-        static int iUNKNOWN = tb_UNKNOWN;
+        const int iDRAWt = tb_DRAW | 4;
+        const int iWMATEt = tb_WMATE | 4;
+        const int iBMATEt = tb_BMATE | 4;
+        const int iUNKNOWN = tb_UNKNOWN;
 
-        static int iUNKNBIT = (1 << 2);
+        const int iUNKNBIT = (1 << 2);
 
-        static int dtm_unpack(int stm, int packed)
+          int dtm_unpack(int stm, int packed)
         {
             int info, plies, prefx, store, moves;
             int ret;
@@ -2889,16 +2896,16 @@ namespace Gaviota
             return ret;
         }
 
-        static int flipWE(int x) { return x ^ 7; }
-        static int flipNS(int x) { return x ^ 56; }
-        static int flipNW_SE(int x) { return ((x & 7) << 3) | (x >> 3); }
+          int flipWE(int x) { return x ^ 7; }
+          int flipNS(int x) { return x ^ 56; }
+          int flipNW_SE(int x) { return ((x & 7) << 3) | (x >> 3); }
 
 
-        static int BLOCK_Ax = 64;
-        static int getcol(int x) { return x & 7; }
-        static int getrow(int x) { return x >> 3; }
+          int BLOCK_Ax = 64;
+          int getcol(int x) { return x & 7; }
+          int getrow(int x) { return x >> 3; }
 
-        static int flip_type(int x, int y)
+          int flip_type(int x, int y)
         {
             int rowx, rowy, colx, coly;
             int ret = 0;
@@ -2934,40 +2941,40 @@ namespace Gaviota
             return ret;
         }
 
-        static bool IDX_is_empty(int x)
+          bool IDX_is_empty(int x)
         {
             return (0 == (1 + (x)));
         }
 
-        static int[][] kkidx = new int[64][];
+          int[][] kkidx = new int[64][];
 
-        static int WHITES = (1 << 6);
-        static int BLACKS = (1 << 7);
+          const int WHITES = (1 << 6);
+          const int BLACKS = (1 << 7);
 
-        public static int NOPIECE = 0;
-        public static int PAWN = 1;
-        public static int KNIGHT = 2;
-        public static int BISHOP = 3;
-        public static int ROOK = 4;
-        public static int QUEEN = 5;
-        public static int KING = 6;
+        public const int NOPIECE = 0;
+        public const int PAWN = 1;
+        public const int KNIGHT = 2;
+        public const int BISHOP = 3;
+        public const int ROOK = 4;
+        public const int QUEEN = 5;
+        public const int KING = 6;
 
-        static int wK = (KING | WHITES);
-        static int wP = (PAWN | WHITES);
-        static int wN = (KNIGHT | WHITES);
-        static int wB = (BISHOP | WHITES);
-        static int wR = (ROOK | WHITES);
-        static int wQ = (QUEEN | WHITES);
+        const int wK = (KING | WHITES);
+        const int wP = (PAWN | WHITES);
+        const int wN = (KNIGHT | WHITES);
+        const int wB = (BISHOP | WHITES);
+        const int wR = (ROOK | WHITES);
+        const int wQ = (QUEEN | WHITES);
 
         /*Blacks*/
-        static int bK = (KING | BLACKS);
-        static int bP = (PAWN | BLACKS);
-        static int bN = (KNIGHT | BLACKS);
-        static int bB = (BISHOP | BLACKS);
-        static int bR = (ROOK | BLACKS);
-        static int bQ = (QUEEN | BLACKS);
+        const int bK = (KING | BLACKS);
+        const int bP = (PAWN | BLACKS);
+        const int bN = (KNIGHT | BLACKS);
+        const int bB = (BISHOP | BLACKS);
+        const int bR = (ROOK | BLACKS);
+        const int bQ = (QUEEN | BLACKS);
 
-        static void norm_kkindex(int x, int y, ref int pi, ref int pj)
+          void norm_kkindex(int x, int y, ref int pi, ref int pj)
         {
             int rowx, rowy, colx, coly;
 
@@ -3000,31 +3007,31 @@ namespace Gaviota
             pj = y;
         }
 
-        static int[] wksq = new int[MAX_KKINDEX];
-        static int[] bksq = new int[MAX_KKINDEX];
-        static byte[][] attmap = new byte[64][];
-        static int[] attmsk = new int[256];
+          int[] wksq = new int[MAX_KKINDEX];
+          int[] bksq = new int[MAX_KKINDEX];
+          byte[][] attmap = new byte[64][];
+          int[] attmsk = new int[256];
 
-        static bool possible_attack(int from, int to, int piece)
+          bool possible_attack(int from, int to, int piece)
         {
             return (0 != (attmap[to][from] & attmsk[piece]));
         }
-        static ulong[][] Reach = new ulong[7][];
+          ulong[][] Reach = new ulong[7][];
 
-        static int[] bstep = { 17, 15, -15, -17, 0 };
-        static int[] rstep = { 1, 16, -1, -16, 0 };
-        static int[] nstep = { 18, 33, 31, 14, -18, -33, -31, -14, 0 };
-        static int[] kstep = { 1, 17, 16, 15, -1, -17, -16, -15, 0 };
+          readonly static int[] bstep = { 17, 15, -15, -17, 0 };
+          readonly static int[] rstep = { 1, 16, -1, -16, 0 };
+          readonly static int[] nstep = { 18, 33, 31, 14, -18, -33, -31, -14, 0 };
+          readonly static int[] kstep = { 1, 17, 16, 15, -1, -17, -16, -15, 0 };
 
-        static int[][] psteparr = {null, null, /* NOPIECE & PAWN */
+          readonly int[][] psteparr = {null, null, /* NOPIECE & PAWN */
                    nstep, bstep, rstep, kstep, kstep /* same for Q & K*/
                   };
 
-        static bool[] pslider = {false, false,
+          bool[] pslider = {false, false,
                    false,  true,  true,  true, false
                   };
 
-        static void tolist_rev(ulong occ, int input_piece, int sq, ref List<int> list)
+          void tolist_rev(ulong occ, int input_piece, int sq, ref List<int> list)
         {
             /* reversible moves from pieces. Output is a list of squares */
             int direction;
@@ -3081,7 +3088,7 @@ namespace Gaviota
             return;
         }
 
-        static void reach_init()
+          void reach_init()
         {
             List<int> buflist = new List<int>();
             List<int> list = new List<int>();
@@ -3151,18 +3158,18 @@ namespace Gaviota
             }
         }
 
-        static bool BB_ISBITON(ulong bb, int bit)
+          bool BB_ISBITON(ulong bb, int bit)
         {
             return (0 != (((bb) >> (bit)) & (ulong)(1)));
         }
 
-        static int mapx88(int x)
+          int mapx88(int x)
         {
             return ((x & 56) << 1) | (x & 7);
         }
 
 
-        static void attack_maps_init()
+          void attack_maps_init()
         {
             int i;
             int m, from, to;
@@ -3249,7 +3256,7 @@ namespace Gaviota
             }
         }
 
-        static int init_kkidx()
+          int init_kkidx()
         {
             /* modifies kkidx[][], wksq[], bksq[] */
             int idx;
@@ -3294,7 +3301,7 @@ namespace Gaviota
             return idx;
         }
 
-        static int kxk_pctoindex()
+          int kxk_pctoindex()
         {
             int ki;
             //int i;
@@ -3349,7 +3356,7 @@ namespace Gaviota
             return ki * BLOCK_Ax + (int)ws[1];
         }
 
-        static int kpk_pctoindex()
+          int kpk_pctoindex()
         {
             int BLOCK_A = 64 * 64;
             int BLOCK_B = 64;
