@@ -2563,7 +2563,7 @@ namespace Gaviota
                 egtb_block_unpack(side, n, Buffer_packed, ref t.pcache);
 
                 blockCache.Add(t);
-                if (blockCache.Count > 256)
+                if (blockCache.Count > 4096)
                     blockCache.RemoveAt(0);
 
                 dtm = t.pcache[remainder];

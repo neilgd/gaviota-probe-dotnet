@@ -12,4 +12,7 @@
     <ProjectReference Include="..\LZMA\LZMA.csproj" />
     <ProjectReference Include="..\pwned_common\pwned_common.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
 </Project>
